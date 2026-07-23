@@ -5,6 +5,8 @@
 <h1 align="center">Ghostcode</h1>
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/@fa33az/ghostcode"><img src="https://img.shields.io/npm/v/@fa33az/ghostcode.svg?style=flat-square" alt="NPM Version" /></a>
+  <a href="https://www.npmjs.com/package/@fa33az/ghostcode"><img src="https://img.shields.io/npm/dm/@fa33az/ghostcode.svg?style=flat-square" alt="NPM Downloads" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" alt="License: MIT" /></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-%3E%3D18.0.0-brightgreen.svg?style=flat-square" alt="Node.js Version" /></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.5-blue.svg?style=flat-square" alt="TypeScript" /></a>
