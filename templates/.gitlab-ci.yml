@@ -1,0 +1,14 @@
+stages:
+  - test
+
+ghostcode_scan:
+  stage: test
+  image: node:20
+  script:
+    - npm ci
+    - npm run build
+    - npx @fa33az/ghostcode --threshold 70 --orphans --fail-on-high 0
+  artifacts:
+    when: always
+    paths:
+      - ghostcode-report.html

@@ -5,6 +5,7 @@ import { GhostScorer } from './ghostScorer.js';
 import { ConfigLoader } from './configLoader.js';
 import { CoverageAnalyzer } from './coverageAnalyzer.js';
 import { Fixer } from './fixer.js';
+import { HtmlReporter } from './htmlReporter.js';
 import { ScanOptions, ScanSummary, FileReport } from './types.js';
 
 export class Scanner {
@@ -13,6 +14,7 @@ export class Scanner {
   private scorer: GhostScorer;
   private coverageAnalyzer?: CoverageAnalyzer;
   private fixer?: Fixer;
+  private customIgnores: string[] = [];
 
   constructor(private options: ScanOptions) {
     const absolutePath = path.resolve(options.path);
@@ -23,6 +25,7 @@ export class Scanner {
       options.threshold = config.threshold;
     }
 
+    this.customIgnores = [...(config.ignore || []), ...(options.ignore || [])];
     this.astAnalyzer = new ASTAnalyzer(absolutePath);
     this.gitAnalyzer = new GitAnalyzer(absolutePath);
     this.scorer = new GhostScorer(config.weights);
@@ -46,7 +49,7 @@ export class Scanner {
       console.log(`[DEBUG] Starting scan on target directory: ${targetDir}`);
     }
 
-    this.astAnalyzer.initialize(targetDir);
+    this.astAnalyzer.initialize(targetDir, this.customIgnores);
     const sourceFiles = this.astAnalyzer.getSourceFiles();
 
     if (this.options.debug) {
@@ -104,7 +107,7 @@ export class Scanner {
 
     const ghostCandidates = reports.filter((r) => r.score.score >= this.options.threshold).length;
 
-    return {
+    const summary: ScanSummary = {
       totalFilesScanned: sourceFiles.length,
       ghostCandidates,
       highRisk,
@@ -114,5 +117,13 @@ export class Scanner {
       prunedFunctionsCount,
       reports,
     };
+
+    // Generate HTML report if requested
+    if (this.options.htmlPath) {
+      const htmlReporter = new HtmlReporter();
+      htmlReporter.generate(summary, this.options.htmlPath);
+    }
+
+    return summary;
   }
 }

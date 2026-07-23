@@ -1,4 +1,4 @@
-import { Project, SourceFile } from 'ts-morph';
+import { Project, SourceFile, SyntaxKind } from 'ts-morph';
 import path from 'node:path';
 import { FileMetrics, FunctionMetrics } from './types.js';
 
@@ -15,17 +15,19 @@ export class ASTAnalyzer {
   }
 
   /**
-   * Initializes ts-morph project loading all TypeScript files in path.
+   * Initializes ts-morph project loading all TypeScript files in path, respecting ignores.
    */
-  public initialize(targetDir: string) {
+  public initialize(targetDir: string, customIgnores: string[] = []) {
     const globPattern = path.join(targetDir, '**/*.{ts,tsx,js,jsx}').replace(/\\/g, '/');
-    this.project.addSourceFilesAtPaths([
-      globPattern,
+    const ignorePatterns = [
       '!**/node_modules/**',
       '!**/dist/**',
       '!**/build/**',
       '!**/.git/**',
-    ]);
+      ...customIgnores.map((g) => (g.startsWith('!') ? g : `!${g}`)),
+    ];
+
+    this.project.addSourceFilesAtPaths([globPattern, ...ignorePatterns]);
 
     const allFiles = this.project.getSourceFiles();
 
@@ -84,7 +86,7 @@ export class ASTAnalyzer {
     const hasCorrespondingTestFile = this.hasTestFilePair(sourceFile);
     const functionMetrics: FunctionMetrics[] = [];
 
-    // Analyze regular function declarations
+    // 1. Analyze standard function declarations
     const functions = sourceFile.getFunctions();
     for (const fn of functions) {
       const fnName = fn.getName();
@@ -94,35 +96,13 @@ export class ASTAnalyzer {
       const startLine = fn.getStartLineNumber();
       const endLine = fn.getEndLineNumber();
 
-      const refs = fn.findReferences();
-      let referenceCount = 0;
-      let testReferenceCount = 0;
-
-      for (const refGroup of refs) {
-        for (const ref of refGroup.getReferences()) {
-          const refSourceFile = ref.getSourceFile();
-          if (refSourceFile === sourceFile && ref.getNode().getStart() === fn.getNameNode()?.getStart()) {
-            continue; // Skip self declaration
-          }
-
-          if (this.isTestFile(refSourceFile.getFilePath())) {
-            testReferenceCount++;
-          } else {
-            referenceCount++;
-          }
-        }
-      }
-
-      // Check for textual mention in test files if symbol reference wasn't caught
-      if (testReferenceCount === 0 && this.isFunctionNameInTests(fnName)) {
-        testReferenceCount = 1;
-      }
-
+      const { referenceCount, testReferenceCount } = this.countReferences(fn, sourceFile, fnName);
       const isGhost = (isExported && referenceCount === 0 && importCount === 0) ||
                       (!isExported && referenceCount === 0);
 
       functionMetrics.push({
         name: fnName,
+        kind: 'function',
         isExported,
         startLine,
         endLine,
@@ -131,6 +111,63 @@ export class ASTAnalyzer {
         testReferenceCount,
         isGhost,
       });
+    }
+
+    // 2. Analyze arrow functions assigned to variables (export const foo = () => {})
+    const variableDeclarations = sourceFile.getVariableDeclarations();
+    for (const varDecl of variableDeclarations) {
+      const initializer = varDecl.getInitializer();
+      if (!initializer || (initializer.getKind() !== SyntaxKind.ArrowFunction && initializer.getKind() !== SyntaxKind.FunctionExpression)) {
+        continue;
+      }
+
+      const varName = varDecl.getName();
+      const varStatement = varDecl.getVariableStatement();
+      const isExported = varStatement ? varStatement.isExported() : false;
+      const startLine = varDecl.getStartLineNumber();
+      const endLine = varDecl.getEndLineNumber();
+
+      const { referenceCount, testReferenceCount } = this.countReferences(varDecl, sourceFile, varName);
+      const isGhost = (isExported && referenceCount === 0 && importCount === 0) ||
+                      (!isExported && referenceCount === 0);
+
+      functionMetrics.push({
+        name: varName,
+        kind: 'arrow',
+        isExported,
+        startLine,
+        endLine,
+        referenceCount,
+        importCount,
+        testReferenceCount,
+        isGhost,
+      });
+    }
+
+    // 3. Analyze class methods
+    const classes = sourceFile.getClasses();
+    for (const cls of classes) {
+      for (const method of cls.getMethods()) {
+        const methodName = method.getName();
+        const isExported = cls.isExported();
+        const startLine = method.getStartLineNumber();
+        const endLine = method.getEndLineNumber();
+
+        const { referenceCount, testReferenceCount } = this.countReferences(method, sourceFile, methodName);
+        const isGhost = referenceCount === 0 && (importCount === 0 || !isExported);
+
+        functionMetrics.push({
+          name: `${cls.getName() || 'Anonymous'}.${methodName}`,
+          kind: 'method',
+          isExported,
+          startLine,
+          endLine,
+          referenceCount,
+          importCount,
+          testReferenceCount,
+          isGhost,
+        });
+      }
     }
 
     const isReferencedInTests = hasCorrespondingTestFile ||
@@ -144,6 +181,37 @@ export class ASTAnalyzer {
       isReferencedInTests,
       functions: functionMetrics,
     };
+  }
+
+  private countReferences(node: any, sourceFile: SourceFile, symbolSearchName: string) {
+    let referenceCount = 0;
+    let testReferenceCount = 0;
+
+    try {
+      const refs = node.findReferences ? node.findReferences() : [];
+      for (const refGroup of refs) {
+        for (const ref of refGroup.getReferences()) {
+          const refSourceFile = ref.getSourceFile();
+          if (refSourceFile === sourceFile && ref.getNode().getStart() === node.getNameNode?.()?.getStart?.()) {
+            continue; // Skip declaration site
+          }
+
+          if (this.isTestFile(refSourceFile.getFilePath())) {
+            testReferenceCount++;
+          } else {
+            referenceCount++;
+          }
+        }
+      }
+    } catch {
+      // Fallback
+    }
+
+    if (testReferenceCount === 0 && this.isFunctionNameInTests(symbolSearchName)) {
+      testReferenceCount = 1;
+    }
+
+    return { referenceCount, testReferenceCount };
   }
 
   private hasTestFilePair(sourceFile: SourceFile): boolean {

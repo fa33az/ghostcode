@@ -1,6 +1,6 @@
 {
   "name": "@fa33az/ghostcode",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Deep structural and behavioral static analysis CLI tool to detect Ghost Code in TypeScript projects",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,6 +11,7 @@
   "type": "module",
   "files": [
     "dist",
+    "templates",
     "README.md",
     "LICENSE"
   ],

@@ -5,9 +5,12 @@ export interface ScanOptions {
   debug: boolean;
   configPath?: string;
   coveragePath?: string;
+  htmlPath?: string;
+  ignore?: string[];
   orphans?: boolean;
   fix?: boolean;
   prune?: boolean;
+  failOnHigh?: boolean | number;
 }
 
 export interface GhostConfig {
@@ -39,6 +42,7 @@ export interface CoverageMetrics {
 
 export interface FunctionMetrics {
   name: string;
+  kind: 'function' | 'arrow' | 'method';
   isExported: boolean;
   startLine: number;
   endLine: number;
