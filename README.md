@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" alt="Ghostcode Logo" width="280" />
+  <img src="assets/logo.png" alt="Ghostcode Logo" width="180" />
 </p>
 
 <h1 align="center">Ghostcode</h1>
