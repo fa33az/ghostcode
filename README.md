@@ -1,6 +1,28 @@
 # Ghostcode
 
-> Deep structural and behavioral static analysis CLI tool to detect **Ghost Code** in TypeScript repositories.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
+[![Node.js Version](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-brightgreen.svg?style=flat-square)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue.svg?style=flat-square)](https://www.typescriptlang.org/)
+[![AST Engine](https://img.shields.io/badge/AST Engine-ts--morph-purple.svg?style=flat-square)](https://ts-morph.com/)
+[![CLI Framework](https://img.shields.io/badge/CLI-Commander.js-black.svg?style=flat-square)](https://github.com/tj/commander.js)
+
+Deep structural and behavioral static analysis CLI tool to detect **Ghost Code** in TypeScript repositories.
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Architecture](#architecture)
+- [Installation](#installation)
+- [CLI Usage](#cli-usage)
+- [Example Output](#example-output)
+- [Ghost Score Calculation Engine](#ghost-score-calculation-engine)
+- [Programmatic API & CI/CD Integration](#programmatic-api--cicd-integration)
+- [Development](#development)
+- [Author](#author)
+- [License](#license)
 
 ---
 
@@ -8,7 +30,7 @@
 
 **Ghost Code** refers to code that is syntactically valid and non-throwing, yet structurally isolated, rarely modified, untested, and virtually unreferenced within a codebase.
 
-Unlike superficial unused import linters, **Ghostcode** combines AST static analysis with Git revision metrics to evaluate code viability through multi-factor behavioral scoring.
+Unlike superficial unused import linters, **Ghostcode** combines AST static analysis with Git revision metrics to evaluate code viability through a multi-factor behavioral scoring engine.
 
 ---
 
@@ -48,11 +70,17 @@ ghostcode/
 - Node.js >= 18.0.0
 - Git
 
-### Local Installation
+### Global Installation
+
+```bash
+npm install -g ghostcode
+```
+
+### Local Repository Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/ghostcode.git
+git clone https://github.com/fa33az/ghostcode.git
 cd ghostcode
 
 # Install dependencies
@@ -61,7 +89,7 @@ npm install
 # Build production bundle
 npm run build
 
-# Link binary globally
+# Link binary globally for development
 npm link
 ```
 
@@ -75,7 +103,7 @@ Run `ghostcode` inside any TypeScript repository:
 ghostcode [options]
 ```
 
-### Options
+### Command Options
 
 | Flag | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
@@ -88,7 +116,7 @@ ghostcode [options]
 
 ---
 
-## Example Usage
+## Example Output
 
 ### Standard Terminal Scan
 
@@ -96,7 +124,7 @@ ghostcode [options]
 ghostcode --path ./src --threshold 70
 ```
 
-#### Sample Output
+#### Output Sample
 
 ```text
 --------------------------------------------------
@@ -123,12 +151,6 @@ Ghost Candidates:    11
  Medium Risk:        5
  Low Risk:           2
 --------------------------------------------------
-```
-
-### CI/CD Pipeline Automation (JSON Output)
-
-```bash
-ghostcode --path . --threshold 80 --json > ghostcode-report.json
 ```
 
 ---
@@ -158,10 +180,20 @@ Ghost Score = (Age Score * 0.3) + (Reference Score * 0.3) + (Test Score * 0.2) +
 
 ---
 
+## Programmatic API & CI/CD Integration
+
+Export results as JSON for automated CI/CD pipeline enforcement:
+
+```bash
+ghostcode --path . --threshold 80 --json > ghostcode-report.json
+```
+
+---
+
 ## Development
 
 ```bash
-# Typecheck TypeScript files
+# Typecheck TypeScript codebase
 npm run typecheck
 
 # Run development watcher
@@ -173,6 +205,15 @@ npm run build
 
 ---
 
+## Author
+
+**Fawwaz Fadhil Rasyad**
+- GitHub: [@fa33az](https://github.com/fa33az)
+
+---
+
 ## License
 
-MIT License.
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files, to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software.
