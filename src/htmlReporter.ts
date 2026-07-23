@@ -14,6 +14,26 @@ export class HtmlReporter {
       fs.mkdirSync(dirPath, { recursive: true });
     }
 
+    // Try reading logo image to embed as base64
+    let logoHtml = '';
+    const logoPaths = [
+      path.join(process.cwd(), 'assets', 'logo.png'),
+      path.join(dirPath, 'assets', 'logo.png'),
+    ];
+
+    for (const logoPath of logoPaths) {
+      if (fs.existsSync(logoPath)) {
+        try {
+          const logoBuffer = fs.readFileSync(logoPath);
+          const base64Logo = logoBuffer.toString('base64');
+          logoHtml = `<img src="data:image/png;base64,${base64Logo}" alt="Ghostcode Logo" style="height: 60px; width: auto; margin-right: 1.25rem; border-radius: 6px;" />`;
+          break;
+        } catch {
+          // Fallback if read fails
+        }
+      }
+    }
+
     const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -48,6 +68,10 @@ export class HtmlReporter {
       margin-bottom: 2rem;
       border-bottom: 1px solid var(--border-color);
       padding-bottom: 1rem;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
     }
     .header h1 { font-size: 1.8rem; font-weight: 700; color: var(--text-main); }
     .header p { color: var(--text-muted); font-size: 0.9rem; }
@@ -109,7 +133,6 @@ export class HtmlReporter {
       gap: 1.5rem;
       font-size: 0.85rem;
       color: var(--text-muted);
-
     }
     .metrics-list span strong { color: var(--text-main); }
     .functions-list {
@@ -130,9 +153,12 @@ export class HtmlReporter {
 </head>
 <body>
   <div class="header">
-    <div>
-      <h1>Ghostcode Analysis Report</h1>
-      <p>Generated on ${new Date().toLocaleString()}</p>
+    <div class="brand">
+      ${logoHtml}
+      <div>
+        <h1>Ghostcode Analysis Report</h1>
+        <p>Generated on ${new Date().toLocaleString()}</p>
+      </div>
     </div>
   </div>
 
