@@ -1,27 +1,49 @@
 {
   "name": "ghostcode",
-  "version": "1.0.0",
-  "description": "CLI tool to detect Zombie Code in TypeScript projects",
+  "version": "2.0.0",
+  "description": "Deep structural and behavioral static analysis CLI tool to detect Ghost Code in TypeScript projects",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "bin": {
     "ghostcode": "dist/index.js",
     "silent-failure-detector": "dist/index.js"
   },
   "type": "module",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --clean --dts",
     "typecheck": "tsc --noEmit",
     "start": "node dist/index.js",
-    "dev": "tsx src/index.ts"
+    "dev": "tsx src/index.ts",
+    "prepublishOnly": "npm run typecheck && npm run build"
   },
   "keywords": [
-    "zombie-code",
+    "ghost-code",
+    "ghostcode",
     "static-analysis",
     "ts-morph",
+    "dead-code-detector",
+    "zombie-code",
+    "lcov",
     "cli"
   ],
-  "author": "",
+  "author": "Fawwaz Fadhil Rasyad",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fa33az/ghostcode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fa33az/ghostcode/issues"
+  },
+  "homepage": "https://github.com/fa33az/ghostcode#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
