@@ -85,7 +85,7 @@ ghostcode/
 ### Global Installation
 
 ```bash
-npm install -g ghostcode
+npm install -g @fa33az/ghostcode
 ```
 
 ### Local Repository Installation
