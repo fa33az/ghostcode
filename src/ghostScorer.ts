@@ -1,10 +1,12 @@
 import { FileMetrics, GhostScore, RiskLevel, ScoreWeights } from './types.js';
 
 export const DEFAULT_WEIGHTS: ScoreWeights = {
-  ageWeight: 0.3,
-  referenceWeight: 0.3,
+  ageWeight: 0.25,
+  referenceWeight: 0.25,
   testWeight: 0.2,
-  commitWeight: 0.2,
+  commitWeight: 0.15,
+  coverageWeight: 0.15,
+  orphanWeight: 0.1,
 };
 
 /**
@@ -16,25 +18,6 @@ export class GhostScorer {
 
   constructor(customWeights?: Partial<ScoreWeights>) {
     this.weights = { ...DEFAULT_WEIGHTS, ...customWeights };
-    this.normalizeWeights();
-  }
-
-  /**
-   * Ensures weights sum to 1.0 to prevent scaling distortion.
-   */
-  private normalizeWeights() {
-    const total =
-      this.weights.ageWeight +
-      this.weights.referenceWeight +
-      this.weights.testWeight +
-      this.weights.commitWeight;
-
-    if (total > 0 && Math.abs(total - 1.0) > 0.001) {
-      this.weights.ageWeight /= total;
-      this.weights.referenceWeight /= total;
-      this.weights.testWeight /= total;
-      this.weights.commitWeight /= total;
-    }
   }
 
   /**
@@ -85,6 +68,25 @@ export class GhostScorer {
   }
 
   /**
+   * Computes runtime test coverage score factor (0-100).
+   * 0% coverage -> 100 (unexecuted ghost code).
+   * 100% coverage -> 0.
+   */
+  private calculateCoverageScore(coverage?: FileMetrics['coverage']): number {
+    if (!coverage) return 0;
+    return 100 - coverage.coveragePercentage;
+  }
+
+  /**
+   * Computes author orphan score factor (0-100).
+   * Written by an orphan contributor who left > 365 days ago -> 100.
+   */
+  private calculateOrphanScore(author?: FileMetrics['git']['author']): number {
+    if (!author) return 0;
+    return author.isOrphan ? 100 : 0;
+  }
+
+  /**
    * Computes the overall Ghost Score (0–100) and risk classification.
    */
   public calculateScore(fileMetrics: FileMetrics): GhostScore {
@@ -92,15 +94,28 @@ export class GhostScorer {
     const referenceScore = this.calculateReferenceScore(fileMetrics.importCount, fileMetrics.functions);
     const testScore = this.calculateTestScore(fileMetrics.isReferencedInTests);
     const commitScore = this.calculateCommitScore(fileMetrics.git.commitCount);
+    const coverageScore = this.calculateCoverageScore(fileMetrics.coverage);
+    const orphanScore = this.calculateOrphanScore(fileMetrics.git.author);
 
-    const weightedScore = Math.round(
-      ageScore * this.weights.ageWeight +
-      referenceScore * this.weights.referenceWeight +
-      testScore * this.weights.testWeight +
-      commitScore * this.weights.commitWeight
-    );
+    // Calculate dynamic weighted score based on active features
+    let totalWeight = this.weights.ageWeight + this.weights.referenceWeight + this.weights.testWeight + this.weights.commitWeight;
+    let weightedSum = (ageScore * this.weights.ageWeight) +
+                      (referenceScore * this.weights.referenceWeight) +
+                      (testScore * this.weights.testWeight) +
+                      (commitScore * this.weights.commitWeight);
 
-    const score = Math.min(100, Math.max(0, weightedScore));
+    if (fileMetrics.coverage && this.weights.coverageWeight) {
+      totalWeight += this.weights.coverageWeight;
+      weightedSum += coverageScore * this.weights.coverageWeight;
+    }
+
+    if (fileMetrics.git.author && this.weights.orphanWeight) {
+      totalWeight += this.weights.orphanWeight;
+      weightedSum += orphanScore * this.weights.orphanWeight;
+    }
+
+    const finalScore = totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0;
+    const score = Math.min(100, Math.max(0, finalScore));
 
     let riskLevel: RiskLevel = 'LOW RISK';
     let status: GhostScore['status'] = 'Active Code';
@@ -122,6 +137,8 @@ export class GhostScorer {
         referenceScore,
         testScore,
         commitScore,
+        ...(fileMetrics.coverage ? { coverageScore } : {}),
+        ...(fileMetrics.git.author ? { orphanScore } : {}),
       },
     };
   }

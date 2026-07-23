@@ -24,11 +24,12 @@
 - [Key Features](#key-features)
 - [Architecture](#architecture)
 - [Installation](#installation)
-- [CLI Usage](#cli-usage)
-- [Example Output](#example-output)
+- [CLI Usage & Options](#cli-usage--options)
+- [Automated Fix & Prune Modes](#automated-fix--prune-modes)
+- [LCOV Coverage & Orphan Author Analysis](#lcov-coverage--orphan-author-analysis)
+- [Configuration File](#configuration-file)
+- [GitHub Action Integration](#github-action-integration)
 - [Ghost Score Calculation Engine](#ghost-score-calculation-engine)
-- [Programmatic API & CI/CD Integration](#programmatic-api--cicd-integration)
-- [Development](#development)
 - [Author](#author)
 - [License](#license)
 
@@ -38,17 +39,18 @@
 
 **Ghost Code** refers to code that is syntactically valid and non-throwing, yet structurally isolated, rarely modified, untested, and virtually unreferenced within a codebase.
 
-Unlike superficial unused import linters, **Ghostcode** combines AST static analysis with Git revision metrics to evaluate code viability through a multi-factor behavioral scoring engine.
+Unlike superficial unused import linters, **Ghostcode** combines AST static analysis, Git revision metrics, LCOV test execution coverage, and author ownership tracking to evaluate code viability through a multi-factor behavioral scoring engine.
 
 ---
 
 ## Key Features
 
 - **Deep AST Reference Analysis**: Uses `ts-morph` to traverse inter-file import graphs, exported function references, and internal call sites.
-- **Git History Metrics**: Analyzes commit frequency and elapsed time since last modification per file using native Git log parsing.
-- **Test Absence Tracking**: Identifies missing `*.test.ts` or `*.spec.ts` pairs and detects function name absence across test suites.
-- **Transparent Scoring Engine**: Computes a deterministic Ghost Score (0–100) with configurable weighting across Age, References, Tests, and Commits.
-- **Flexible Output Formats**: Supports human-readable terminal rendering with `chalk` and raw JSON output for CI/CD integration.
+- **Git History & Author Metrics**: Analyzes commit frequency, modification age, and flags **Orphan Code** written by contributors who left or haven't committed in > 365 days.
+- **LCOV Test Coverage Integration**: Cross-references AST symbols with `lcov.info` execution coverage data.
+- **Automated Fix & Prune Engine**: `--fix` appends `@deprecated` JSDoc tags to ghost functions; `--prune` safely strips unreferenced internal ghost code.
+- **Custom Config Support**: Load custom scoring weights and glob ignores via `.ghostcoderc` or `ghostcode.config.json`.
+- **GitHub Action Workflow**: Ready-to-use CI/CD workflow (`.github/workflows/ghostcode.yml`).
 
 ---
 
@@ -56,14 +58,21 @@ Unlike superficial unused import linters, **Ghostcode** combines AST static anal
 
 ```
 ghostcode/
+├── .github/workflows/
+│   └── ghostcode.yml     # Automated GitHub Action workflow
 ├── src/
 │   ├── index.ts          # CLI entry point powered by Commander
 │   ├── scanner.ts        # Core scan pipeline orchestrator
-│   ├── gitAnalyzer.ts    # Git history & revision timestamp parser
+│   ├── gitAnalyzer.ts    # Git history, revision timestamp & author orphan parser
 │   ├── astAnalyzer.ts    # Static AST dependency & test analyzer (ts-morph)
-│   ├── ghostScorer.ts    # 4-factor Ghost Score calculation engine
+│   ├── ghostScorer.ts    # Dynamic 6-factor Ghost Score calculation engine
+│   ├── configLoader.ts   # Configuration file loader (.ghostcoderc)
+│   ├── coverageAnalyzer.ts # LCOV test execution coverage parser
+│   ├── fixer.ts          # Automated AST fixer (@deprecated tagging & function pruning)
 │   ├── reporter.ts       # Chalk terminal and JSON reporting module
-│   └── types.ts          # Core domain models and interface definitions
+│   └── types.ts          # Domain models and interface definitions
+├── assets/
+│   └── logo.png          # Project logo
 ├── dist/                 # Compiled ESM production output
 ├── package.json
 └── tsconfig.json
@@ -72,11 +81,6 @@ ghostcode/
 ---
 
 ## Installation
-
-### Requirements
-
-- Node.js >= 18.0.0
-- Git
 
 ### Global Installation
 
@@ -87,36 +91,32 @@ npm install -g ghostcode
 ### Local Repository Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/fa33az/ghostcode.git
 cd ghostcode
-
-# Install dependencies
 npm install
-
-# Build production bundle
 npm run build
-
-# Link binary globally for development
 npm link
 ```
 
 ---
 
-## CLI Usage
-
-Run `ghostcode` inside any TypeScript repository:
+## CLI Usage & Options
 
 ```bash
 ghostcode [options]
 ```
 
-### Command Options
+### Options Reference
 
 | Flag | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `-p, --path <dir>` | `string` | `.` | Target project directory to analyze |
 | `-t, --threshold <number>` | `number` | `70` | Minimum Ghost Score threshold (0–100) for candidate flagging |
+| `-c, --config <file>` | `string` | - | Path to custom ghostcode config file |
+| `--coverage <file>` | `string` | - | Path to LCOV coverage file (e.g. `coverage/lcov.info`) |
+| `--orphans` | `boolean` | `false` | Analyze Git author history for orphan contributors (> 365 days inactive) |
+| `--fix` | `boolean` | `false` | Automatically append `@deprecated` JSDoc tags to ghost functions |
+| `--prune` | `boolean` | `false` | Safely remove unreferenced internal ghost functions |
 | `--json` | `boolean` | `false` | Output results in raw JSON format |
 | `--debug` | `boolean` | `false` | Enable verbose log output |
 | `-v, --version` | `boolean` | - | Display version information |
@@ -124,41 +124,85 @@ ghostcode [options]
 
 ---
 
-## Example Output
+## Automated Fix & Prune Modes
 
-### Standard Terminal Scan
+- **Tagging Deprecated Ghost Code**:
+  ```bash
+  ghostcode --fix --threshold 70
+  ```
+  Appends `@deprecated Ghost code detected by ghostcode analysis.` JSDoc tags to identified ghost functions using `ts-morph`.
 
-```bash
-ghostcode --path ./src --threshold 70
+- **Safe Pruning Internal Ghost Code**:
+  ```bash
+  ghostcode --prune --threshold 80
+  ```
+  Safely removes internal, unexported, unreferenced ghost functions directly from source files.
+
+---
+
+## LCOV Coverage & Orphan Author Analysis
+
+- **Include Test Execution Coverage**:
+  ```bash
+  ghostcode --coverage ./coverage/lcov.info
+  ```
+
+- **Detect Orphan Code**:
+  ```bash
+  ghostcode --orphans
+  ```
+  Flags code whose primary author has not committed anywhere in the repository for over 365 days.
+
+---
+
+## Configuration File
+
+Create a `.ghostcoderc` or `ghostcode.config.json` in your project root:
+
+```json
+{
+  "threshold": 70,
+  "weights": {
+    "ageWeight": 0.25,
+    "referenceWeight": 0.25,
+    "testWeight": 0.2,
+    "commitWeight": 0.15,
+    "coverageWeight": 0.15,
+    "orphanWeight": 0.1
+  },
+  "ignore": [
+    "**/vendor/**",
+    "**/legacy/**"
+  ]
+}
 ```
 
-#### Output Sample
+---
 
-```text
---------------------------------------------------
-Ghost Code Report
+## GitHub Action Integration
 
-File: src/utils/legacyFormatter.ts
-Last Modified: 482 days ago
-Import Count: 0
-Referenced In Tests: No
-Commit Count: 1
+Create `.github/workflows/ghostcode.yml`:
 
-Ghost Score: 87/100 ( HIGH RISK )
-Status: Likely Dead Code
+```yaml
+name: Ghost Code Analysis
 
-  Ghost Functions Detected:
-   - formatLegacyDate (L12-L34) [Exported: Yes]
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
 
---------------------------------------------------
-Summary Metrics:
-
-Total Files Scanned: 142
-Ghost Candidates:    11
- High Risk:          4
- Medium Risk:        5
- Low Risk:           2
---------------------------------------------------
+jobs:
+  ghostcode:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm run build
+      - run: npx ghostcode --threshold 70 --orphans
 ```
 
 ---
@@ -170,46 +214,14 @@ The **Ghost Score** ranges from **0 (Active Code)** to **100 (Likely Dead Code)*
 ### Formula
 
 ```
-Ghost Score = (Age Score * 0.3) + (Reference Score * 0.3) + (Test Score * 0.2) + (Commit Score * 0.2)
+Ghost Score = (Age * W_age) + (Ref * W_ref) + (Test * W_test) + (Commit * W_commit) + (Coverage * W_cov) + (Orphan * W_orph)
 ```
-
-### Factor Breakdown
-
-1. **Age Score (Weight: 0.3)**: Evaluates days elapsed since the file was last committed. Files untouched for >= 180 days receive a score of 100.
-2. **Reference Score (Weight: 0.3)**: Measures incoming file imports and internal symbol references across the project. 0 incoming imports or references receive 100.
-3. **Test Score (Weight: 0.2)**: Evaluates test presence. Absence of matching test files (`*.test.ts` / `*.spec.ts`) and zero references in test suites receive 100.
-4. **Commit Score (Weight: 0.2)**: Measures historical commit frequency. Single-commit files (written once and forgotten) receive 100.
 
 ### Risk Classifications
 
 - **HIGH RISK (Score >= 70)**: High probability of obsolete or dead code.
 - **MEDIUM RISK (Score 40–69)**: Low reference density or outdated code requiring inspection.
 - **LOW RISK (Score < 40)**: Actively maintained or well-referenced code.
-
----
-
-## Programmatic API & CI/CD Integration
-
-Export results as JSON for automated CI/CD pipeline enforcement:
-
-```bash
-ghostcode --path . --threshold 80 --json > ghostcode-report.json
-```
-
----
-
-## Development
-
-```bash
-# Typecheck TypeScript codebase
-npm run typecheck
-
-# Run development watcher
-npm run dev
-
-# Production build
-npm run build
-```
 
 ---
 
@@ -223,5 +235,3 @@ npm run build
 ## License
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files, to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software.

@@ -4,12 +4,37 @@ export interface ScanOptions {
   json: boolean;
   debug: boolean;
   configPath?: string;
+  coveragePath?: string;
+  orphans?: boolean;
+  fix?: boolean;
+  prune?: boolean;
+}
+
+export interface GhostConfig {
+  threshold?: number;
+  weights?: Partial<ScoreWeights>;
+  ignore?: string[];
+  orphanThresholdDays?: number;
+}
+
+export interface AuthorMetrics {
+  lastAuthor: string | null;
+  isOrphan: boolean;
+  authorCommitCount: number;
 }
 
 export interface GitMetrics {
   lastModifiedDate: Date | null;
   daysSinceLastCommit: number;
   commitCount: number;
+  author?: AuthorMetrics;
+}
+
+export interface CoverageMetrics {
+  coveredLines: number;
+  totalLines: number;
+  coveragePercentage: number;
+  isCovered: boolean;
 }
 
 export interface FunctionMetrics {
@@ -30,6 +55,7 @@ export interface FileMetrics {
   importCount: number;
   isReferencedInTests: boolean;
   functions: FunctionMetrics[];
+  coverage?: CoverageMetrics;
 }
 
 export interface ScoreWeights {
@@ -37,6 +63,8 @@ export interface ScoreWeights {
   referenceWeight: number;
   testWeight: number;
   commitWeight: number;
+  coverageWeight?: number;
+  orphanWeight?: number;
 }
 
 export type RiskLevel = 'HIGH RISK' | 'MEDIUM RISK' | 'LOW RISK';
@@ -50,12 +78,16 @@ export interface GhostScore {
     referenceScore: number;
     testScore: number;
     commitScore: number;
+    coverageScore?: number;
+    orphanScore?: number;
   };
 }
 
 export interface FileReport {
   file: FileMetrics;
   score: GhostScore;
+  fixed?: boolean;
+  pruned?: boolean;
 }
 
 export interface ScanSummary {
@@ -64,5 +96,7 @@ export interface ScanSummary {
   highRisk: number;
   mediumRisk: number;
   lowRisk: number;
+  fixedFilesCount?: number;
+  prunedFunctionsCount?: number;
   reports: FileReport[];
 }

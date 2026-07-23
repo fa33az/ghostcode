@@ -2,12 +2,12 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import fs from 'node:fs';
 import path from 'node:path';
-import { GitMetrics } from './types.js';
+import { GitMetrics, AuthorMetrics } from './types.js';
 
 const execFileAsync = promisify(execFile);
 
 /**
- * GitAnalyzer extracts revision history metrics using native git commands.
+ * GitAnalyzer extracts revision history metrics and author ownership using native git commands.
  * Handles non-git repositories or untracked files with filesystem fallbacks.
  */
 export class GitAnalyzer {
@@ -34,9 +34,9 @@ export class GitAnalyzer {
   }
 
   /**
-   * Analyzes git history for a specific file path.
+   * Analyzes git history and author metrics for a specific file path.
    */
-  async getMetrics(absoluteFilePath: string): Promise<GitMetrics> {
+  async getMetrics(absoluteFilePath: string, analyzeOrphans: boolean = false): Promise<GitMetrics> {
     const relativePath = path.relative(this.projectRoot, absoluteFilePath);
     const isGit = await this.isGitRepository();
 
@@ -45,10 +45,10 @@ export class GitAnalyzer {
     }
 
     try {
-      // Fetch last commit date ISO-8601
-      const { stdout: dateOutput } = await execFileAsync(
+      // Fetch last commit date ISO-8601 and author
+      const { stdout: logOutput } = await execFileAsync(
         'git',
-        ['log', '-1', '--format=%cI', '--', relativePath],
+        ['log', '-1', '--format=%cI|%an|%ae', '--', relativePath],
         { cwd: this.projectRoot }
       );
 
@@ -59,7 +59,11 @@ export class GitAnalyzer {
         { cwd: this.projectRoot }
       );
 
-      const trimmedDate = dateOutput.trim();
+      const parts = logOutput.trim().split('|');
+      const trimmedDate = parts[0] || '';
+      const authorName = parts[1] || null;
+      const authorEmail = parts[2] || null;
+
       const commitCount = parseInt(countOutput.trim(), 10) || 0;
 
       if (!trimmedDate) {
@@ -71,13 +75,60 @@ export class GitAnalyzer {
       const diffTime = Math.abs(now.getTime() - lastModifiedDate.getTime());
       const daysSinceLastCommit = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
+      let authorMetrics: AuthorMetrics | undefined;
+      if (analyzeOrphans && authorEmail) {
+        authorMetrics = await this.getAuthorOrphanMetrics(authorEmail, authorName);
+      }
+
       return {
         lastModifiedDate,
         daysSinceLastCommit,
         commitCount,
+        author: authorMetrics,
       };
     } catch {
       return this.getFallbackMetrics(absoluteFilePath);
+    }
+  }
+
+  /**
+   * Evaluates if author is an orphan contributor (no commits across project in > 365 days).
+   */
+  private async getAuthorOrphanMetrics(authorEmail: string, authorName: string | null): Promise<AuthorMetrics> {
+    try {
+      const { stdout: authorLog } = await execFileAsync(
+        'git',
+        ['log', '-1', '--author=' + authorEmail, '--format=%cI'],
+        { cwd: this.projectRoot }
+      );
+
+      const { stdout: authorCommitCount } = await execFileAsync(
+        'git',
+        ['rev-list', '--count', '--author=' + authorEmail, 'HEAD'],
+        { cwd: this.projectRoot }
+      );
+
+      const lastCommitDateStr = authorLog.trim();
+      const commitCount = parseInt(authorCommitCount.trim(), 10) || 0;
+
+      let isOrphan = false;
+      if (lastCommitDateStr) {
+        const lastCommitDate = new Date(lastCommitDateStr);
+        const daysAgo = Math.floor((Date.now() - lastCommitDate.getTime()) / (1000 * 60 * 60 * 24));
+        isOrphan = daysAgo > 365;
+      }
+
+      return {
+        lastAuthor: authorName || authorEmail,
+        isOrphan,
+        authorCommitCount: commitCount,
+      };
+    } catch {
+      return {
+        lastAuthor: authorName || authorEmail,
+        isOrphan: false,
+        authorCommitCount: 0,
+      };
     }
   }
 
@@ -94,7 +145,7 @@ export class GitAnalyzer {
       return {
         lastModifiedDate: stats.mtime,
         daysSinceLastCommit,
-        commitCount: 1, // Fallback assumption
+        commitCount: 1,
       };
     } catch {
       return {

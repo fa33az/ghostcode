@@ -2,18 +2,39 @@ import path from 'node:path';
 import { ASTAnalyzer } from './astAnalyzer.js';
 import { GitAnalyzer } from './gitAnalyzer.js';
 import { GhostScorer } from './ghostScorer.js';
+import { ConfigLoader } from './configLoader.js';
+import { CoverageAnalyzer } from './coverageAnalyzer.js';
+import { Fixer } from './fixer.js';
 import { ScanOptions, ScanSummary, FileReport } from './types.js';
 
 export class Scanner {
   private astAnalyzer: ASTAnalyzer;
   private gitAnalyzer: GitAnalyzer;
   private scorer: GhostScorer;
+  private coverageAnalyzer?: CoverageAnalyzer;
+  private fixer?: Fixer;
 
   constructor(private options: ScanOptions) {
     const absolutePath = path.resolve(options.path);
+
+    // Load config if available
+    const config = ConfigLoader.load(absolutePath, options.configPath);
+    if (config.threshold && !options.threshold) {
+      options.threshold = config.threshold;
+    }
+
     this.astAnalyzer = new ASTAnalyzer(absolutePath);
     this.gitAnalyzer = new GitAnalyzer(absolutePath);
-    this.scorer = new GhostScorer();
+    this.scorer = new GhostScorer(config.weights);
+
+    if (options.coveragePath) {
+      this.coverageAnalyzer = new CoverageAnalyzer();
+      this.coverageAnalyzer.parseLcov(path.resolve(options.coveragePath));
+    }
+
+    if (options.fix || options.prune) {
+      this.fixer = new Fixer();
+    }
   }
 
   /**
@@ -36,17 +57,35 @@ export class Scanner {
     let highRisk = 0;
     let mediumRisk = 0;
     let lowRisk = 0;
+    let fixedFilesCount = 0;
+    let prunedFunctionsCount = 0;
 
     for (const file of sourceFiles) {
       const astMetrics = this.astAnalyzer.analyzeFile(file);
-      const gitMetrics = await this.gitAnalyzer.getMetrics(astMetrics.filePath);
+      const gitMetrics = await this.gitAnalyzer.getMetrics(astMetrics.filePath, Boolean(this.options.orphans));
+      const coverageMetrics = this.coverageAnalyzer?.getCoverage(astMetrics.filePath);
 
       const fileMetrics = {
         ...astMetrics,
         git: gitMetrics,
+        coverage: coverageMetrics,
       };
 
       const ghostScore = this.scorer.calculateScore(fileMetrics);
+
+      let fixed = false;
+      let pruned = false;
+
+      // Apply fix / prune if flagged and score exceeds threshold
+      if (this.fixer && ghostScore.score >= this.options.threshold) {
+        const result = this.fixer.fixFile(fileMetrics, Boolean(this.options.fix), Boolean(this.options.prune));
+        fixed = result.fixed;
+        if (result.fixed) fixedFilesCount++;
+        if (result.prunedCount > 0) {
+          pruned = true;
+          prunedFunctionsCount += result.prunedCount;
+        }
+      }
 
       if (ghostScore.riskLevel === 'HIGH RISK') highRisk++;
       else if (ghostScore.riskLevel === 'MEDIUM RISK') mediumRisk++;
@@ -55,6 +94,8 @@ export class Scanner {
       reports.push({
         file: fileMetrics,
         score: ghostScore,
+        fixed,
+        pruned,
       });
     }
 
@@ -69,6 +110,8 @@ export class Scanner {
       highRisk,
       mediumRisk,
       lowRisk,
+      fixedFilesCount,
+      prunedFunctionsCount,
       reports,
     };
   }

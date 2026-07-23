@@ -28,7 +28,7 @@ export class Reporter {
   }
 
   private renderFileReport(report: FileReport): void {
-    const { file, score } = report;
+    const { file, score, fixed, pruned } = report;
     const days = file.git.daysSinceLastCommit;
     const lastModifiedText = days === 0 ? 'Today' : `${days} days ago`;
 
@@ -48,6 +48,27 @@ export class Reporter {
       }`
     );
     console.log(`${chalk.gray('Commit Count:')} ${file.git.commitCount}`);
+
+    if (file.git.author) {
+      const orphanText = file.git.author.isOrphan
+        ? chalk.red(` [ORPHAN AUTHOR - Last active > 365 days ago]`)
+        : '';
+      console.log(`${chalk.gray('Last Author:')} ${file.git.author.lastAuthor}${orphanText}`);
+    }
+
+    if (file.coverage) {
+      console.log(
+        `${chalk.gray('LCOV Coverage:')} ${file.coverage.coveragePercentage}% (${file.coverage.coveredLines}/${file.coverage.totalLines} lines)`
+      );
+    }
+
+    if (fixed) {
+      console.log(chalk.green(`\n  [FIXED] Added @deprecated tag to ghost functions.`));
+    }
+    if (pruned) {
+      console.log(chalk.yellow(`  [PRUNED] Removed unreferenced internal ghost functions.`));
+    }
+
     console.log(
       `\n${chalk.bold('Ghost Score:')} ${chalk.bold.red(`${score.score}/100`)} (${riskBadge})`
     );
@@ -76,6 +97,14 @@ export class Reporter {
     console.log(` ${chalk.red('High Risk:')}         ${summary.highRisk}`);
     console.log(` ${chalk.yellow('Medium Risk:')}       ${summary.mediumRisk}`);
     console.log(` ${chalk.green('Low Risk:')}          ${summary.lowRisk}`);
+
+    if (summary.fixedFilesCount !== undefined) {
+      console.log(` ${chalk.green('Fixed Files:')}        ${summary.fixedFilesCount}`);
+    }
+    if (summary.prunedFunctionsCount !== undefined) {
+      console.log(` ${chalk.yellow('Pruned Functions:')}   ${summary.prunedFunctionsCount}`);
+    }
+
     console.log(chalk.bold.magenta('--------------------------------------------------\n'));
   }
 }
