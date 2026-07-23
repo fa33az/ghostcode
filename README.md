@@ -1,12 +1,20 @@
-# Ghostcode
+<p align="center">
+  <img src="assets/logo.png" alt="Ghostcode Logo" width="280" />
+</p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
-[![Node.js Version](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-brightgreen.svg?style=flat-square)](https://nodejs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue.svg?style=flat-square)](https://www.typescriptlang.org/)
-[![AST Engine](https://img.shields.io/badge/AST_Engine-ts--morph-purple.svg?style=flat-square)](https://ts-morph.com/)
-[![CLI Framework](https://img.shields.io/badge/CLI-Commander.js-black.svg?style=flat-square)](https://github.com/tj/commander.js)
+<h1 align="center">Ghostcode</h1>
 
-Deep structural and behavioral static analysis CLI tool to detect **Ghost Code** in TypeScript repositories.
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" alt="License: MIT" /></a>
+  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-%3E%3D18.0.0-brightgreen.svg?style=flat-square" alt="Node.js Version" /></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.5-blue.svg?style=flat-square" alt="TypeScript" /></a>
+  <a href="https://ts-morph.com/"><img src="https://img.shields.io/badge/AST_Engine-ts--morph-purple.svg?style=flat-square" alt="AST Engine" /></a>
+  <a href="https://github.com/tj/commander.js"><img src="https://img.shields.io/badge/CLI-Commander.js-black.svg?style=flat-square" alt="CLI Framework" /></a>
+</p>
+
+<p align="center">
+  Deep structural and behavioral static analysis CLI tool to detect <b>Ghost Code</b> in TypeScript repositories.
+</p>
 
 ---
 
