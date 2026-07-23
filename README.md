@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![Node.js Version](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-brightgreen.svg?style=flat-square)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue.svg?style=flat-square)](https://www.typescriptlang.org/)
-[![AST Engine](https://img.shields.io/badge/AST Engine-ts--morph-purple.svg?style=flat-square)](https://ts-morph.com/)
+[![AST Engine](https://img.shields.io/badge/AST_Engine-ts--morph-purple.svg?style=flat-square)](https://ts-morph.com/)
 [![CLI Framework](https://img.shields.io/badge/CLI-Commander.js-black.svg?style=flat-square)](https://github.com/tj/commander.js)
 
 Deep structural and behavioral static analysis CLI tool to detect **Ghost Code** in TypeScript repositories.
